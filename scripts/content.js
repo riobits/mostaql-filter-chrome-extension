@@ -1,8 +1,10 @@
 let totalFilteredPosts = 0;
 let blacklist = [];
+let filterEnabled = true; // default
 
 // Helper function to filter a single element
 function filterElement(el) {
+  if (!filterEnabled) return; // Do nothing if filter is off
   if (!(el instanceof HTMLElement)) return;
 
   const content1 = el.querySelector("a")?.textContent.trim() || "";
@@ -22,6 +24,7 @@ function filterElement(el) {
 
 // Filter all current posts on the page
 function filterAllExistingPosts() {
+  if (!filterEnabled) return; // skip if filter is off
   const rows = document.querySelectorAll(
     "body > div.wrapper.hsoub-container > div > div.page-body > div > div.row > div.col-md-9.collection-browse--panel > div > table > tbody > tr"
   );
@@ -67,6 +70,7 @@ function observeNewPosts() {
 
   const observer = new MutationObserver((mutations) => {
     totalFilteredPosts = 0;
+    if (!filterEnabled) return; // skip if filter is off
     for (const mutation of mutations) {
       mutation.addedNodes.forEach(filterElement);
     }
@@ -75,23 +79,54 @@ function observeNewPosts() {
   observer.observe(target, { childList: true });
 }
 
-// Load blacklist from storage
-function loadBlacklist(callback) {
-  chrome.storage.local.get({ blacklist: [] }, (data) => {
+// Load blacklist and filter status from storage
+function loadSettings(callback) {
+  chrome.storage.local.get({ blacklist: [], filterEnabled: true }, (data) => {
     blacklist = data.blacklist;
-    filterAllExistingPosts(); // Apply filter immediately on load
+    filterEnabled = data.filterEnabled;
+
+    // Reset counter when loading settings
+    totalFilteredPosts = 0;
+    updateCounter();
+
+    if (filterEnabled) {
+      filterAllExistingPosts(); // Apply filter immediately if enabled
+    }
+
     if (callback) callback();
   });
 }
 
 // Listen for storage changes (real-time updates)
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && changes.blacklist) {
-    blacklist = changes.blacklist.newValue;
-    filterAllExistingPosts(); // Apply filter when list changes
+  if (area === "local") {
+    let shouldReset = false;
+
+    if (changes.blacklist) {
+      blacklist = changes.blacklist.newValue;
+      if (filterEnabled) shouldReset = true;
+    }
+    if (changes.filterEnabled) {
+      filterEnabled = changes.filterEnabled.newValue;
+      shouldReset = true;
+
+      if (!filterEnabled) {
+        // Filter turned off → reload page to restore all posts
+        window.location.reload();
+        return;
+      }
+    }
+
+    // Reset counter when filter is toggled or list changes
+    totalFilteredPosts = 0;
+    updateCounter();
+
+    if (filterEnabled && shouldReset) {
+      filterAllExistingPosts(); // Apply filter immediately
+    }
   }
 });
 
 // Initial setup
 createCounter();
-loadBlacklist(observeNewPosts);
+loadSettings(observeNewPosts);
