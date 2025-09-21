@@ -66,6 +66,7 @@ function observeNewPosts() {
   if (!target) return;
 
   const observer = new MutationObserver((mutations) => {
+    totalFilteredPosts = 0;
     for (const mutation of mutations) {
       mutation.addedNodes.forEach(filterElement);
     }
