@@ -1,0 +1,23 @@
+{
+  "name": "Mostaql Filter",
+  "description": "Filters some words to get the perfect job opportunities",
+  "version": "1.0",
+  "permissions": [
+    "storage"
+  ],
+  "manifest_version": 3,
+  "action": {
+    "default_popup": "popup/filter.html",
+    "default_icon": "icon.png"
+  },
+  "content_scripts": [
+    {
+      "js": [
+        "scripts/content.js"
+      ],
+      "matches": [
+        "https://mostaql.com/projects*"
+      ]
+    }
+  ]
+}
